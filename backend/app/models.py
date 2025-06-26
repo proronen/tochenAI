@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from pydantic import EmailStr
 from sqlmodel import Field, Relationship, SQLModel
@@ -156,4 +156,44 @@ class UpcomingPostPublic(UpcomingPostBase):
 
 class UpcomingPostsPublic(SQLModel):
     data: List[UpcomingPostPublic]
+    count: int
+
+
+class SocialAccountBase(SQLModel):
+    platform: str = Field(max_length=32)  # facebook, instagram, tiktok
+    access_token: str = Field(max_length=1024)
+    refresh_token: Optional[str] = Field(default=None, max_length=1024)
+    expires_at: Optional[datetime] = None
+    account_id: str = Field(max_length=128)
+    account_name: Optional[str] = Field(default=None, max_length=255)
+
+
+class SocialAccountCreate(SocialAccountBase):
+    pass
+
+
+class SocialAccountUpdate(SQLModel):
+    access_token: Optional[str] = None
+    refresh_token: Optional[str] = None
+    expires_at: Optional[datetime] = None
+    account_name: Optional[str] = None
+
+
+class SocialAccount(SocialAccountBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id", nullable=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    user: User | None = Relationship(back_populates=None)
+
+
+class SocialAccountPublic(SocialAccountBase):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class SocialAccountsPublic(SQLModel):
+    data: List[SocialAccountPublic]
     count: int
