@@ -3,11 +3,13 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
-
+import string
+import random
 import emails  # type: ignore
 import jwt
 from jinja2 import Template
 from jwt.exceptions import InvalidTokenError
+import requests
 
 from app.core import security
 from app.core.config import settings
@@ -82,6 +84,10 @@ def generate_reset_password_email(email_to: str, email: str, token: str) -> Emai
     return EmailData(html_content=html_content, subject=subject)
 
 
+def random_string(size=6, chars=string.ascii_uppercase + string.digits):
+    return ''.join(random.choice(chars) for _ in range(size))
+
+
 def generate_new_account_email(
     email_to: str, username: str, password: str
 ) -> EmailData:
@@ -121,3 +127,69 @@ def verify_password_reset_token(token: str) -> str | None:
         return str(decoded_token["sub"])
     except InvalidTokenError:
         return None
+
+
+class FacebookClient:
+    def __init__(self, page_access_token: str, page_id: str):
+        self.page_access_token = page_access_token
+        self.page_id = page_id
+        self.base_url = f"https://graph.facebook.com/{self.page_id}"
+
+    def post_to_page(self, message: str) -> dict:
+        url = f"{self.base_url}/feed"
+        payload = {
+            "message": message,
+            "access_token": self.page_access_token
+        }
+        response = requests.post(url, data=payload)
+        response.raise_for_status()
+        return response.json()
+
+
+class TikTokClient:
+    def __init__(self, access_token: str, user_id: str):
+        self.access_token = access_token
+        self.user_id = user_id
+        self.base_url = f"https://open-api.tiktok.com/share/video/upload/"
+        # Note: TikTok's API for posting is limited and may require business approval.
+
+    def post_to_account(self, video_url: str, description: str) -> dict:
+        # This is a placeholder. TikTok's API for posting is not as open as Facebook/Instagram.
+        payload = {
+            "access_token": self.access_token,
+            "open_id": self.user_id,
+            "video_url": video_url,
+            "description": description
+        }
+        response = requests.post(self.base_url, data=payload)
+        response.raise_for_status()
+        return response.json()
+
+
+class InstagramClient:
+    def __init__(self, access_token: str, page_id: str):
+        self.access_token = access_token
+        self.page_id = page_id
+        self.base_url = f"https://graph.facebook.com/v19.0/{self.page_id}"
+        # Instagram posting is done via the Facebook Graph API for Instagram Business accounts.
+
+    def post_to_account(self, image_url: str, caption: str) -> dict:
+        # Step 1: Create a media object
+        media_url = f"{self.base_url}/media"
+        payload = {
+            "image_url": image_url,
+            "caption": caption,
+            "access_token": self.access_token
+        }
+        response = requests.post(media_url, data=payload)
+        response.raise_for_status()
+        media_id = response.json().get("id")
+        # Step 2: Publish the media object
+        publish_url = f"{self.base_url}/media_publish"
+        publish_payload = {
+            "creation_id": media_id,
+            "access_token": self.access_token
+        }
+        publish_response = requests.post(publish_url, data=publish_payload)
+        publish_response.raise_for_status()
+        return publish_response.json()

@@ -170,3 +170,68 @@ The email templates are in `./backend/app/email-templates/`. Here, there are two
 Before continuing, ensure you have the [MJML extension](https://marketplace.visualstudio.com/items?itemName=attilabuti.vscode-mjml) installed in your VS Code.
 
 Once you have the MJML extension installed, you can create a new email template in the `src` directory. After creating the new email template and with the `.mjml` file open in your editor, open the command palette with `Ctrl+Shift+P` and search for `MJML: Export to HTML`. This will convert the `.mjml` file to a `.html` file and now you can save it in the build directory.
+
+## Facebook Posting Integration
+
+This backend includes a module to post messages to a Facebook Page using the Facebook Graph API.
+
+### Requirements
+- A Facebook App and a Page Access Token with `pages_manage_posts` and `pages_read_engagement` permissions.
+- The Page Access Token and Page ID must be set as environment variables:
+  - `FACEBOOK_PAGE_ACCESS_TOKEN`
+  - `FACEBOOK_PAGE_ID`
+
+### Usage
+- POST to `/api/facebook/post` with a JSON body containing a `message` field to publish a post to the configured Facebook Page.
+
+Example request (using `curl`):
+
+```bash
+curl -X POST "http://localhost:8000/api/facebook/post" \
+     -H "Content-Type: application/json" \
+     -d '{"message": "Hello from FastAPI!"}'
+```
+
+### Security
+- Never hardcode tokens in code. Use environment variables as shown above.
+- Facebook tokens may expire; ensure you have a process to refresh them as needed.
+
+## TikTok Posting Integration
+
+This backend includes a module to post videos to TikTok (subject to TikTok API limitations).
+
+### Requirements
+- TikTok App credentials and an Access Token with posting permissions.
+- The Access Token and User ID must be set as environment variables:
+  - `TIKTOK_ACCESS_TOKEN`
+  - `TIKTOK_USER_ID`
+
+### Usage
+- POST to `/api/tiktok/post` with a JSON body containing `video_url` and `description` fields.
+
+Example request:
+```bash
+curl -X POST "http://localhost:8000/api/tiktok/post" \
+     -H "Content-Type: application/json" \
+     -d '{"video_url": "https://example.com/video.mp4", "description": "My TikTok video!"}'
+```
+
+## Instagram Posting Integration
+
+This backend includes a module to post images to Instagram Business accounts via the Facebook Graph API.
+
+### Requirements
+- Instagram Business Account connected to a Facebook Page.
+- Access Token and Page ID must be set as environment variables:
+  - `INSTAGRAM_ACCESS_TOKEN`
+  - `INSTAGRAM_PAGE_ID`
+
+### Usage
+- POST to `/api/instagram/post` with a JSON body containing `image_url` and `caption` fields.
+
+Example request:
+```bash
+curl -X POST "http://localhost:8000/api/instagram/post" \
+     -H "Content-Type: application/json" \
+     -d '{"image_url": "https://example.com/image.jpg", "caption": "My Instagram post!"}'
+```

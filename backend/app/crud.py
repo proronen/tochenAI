@@ -1,10 +1,11 @@
 import uuid
 from typing import Any
+from datetime import datetime
 
 from sqlmodel import Session, select
 
 from app.core.security import get_password_hash, verify_password
-from app.models import Item, ItemCreate, User, UserCreate, UserUpdate
+from app.models import Item, ItemCreate, User, UserCreate, UserUpdate, UpcomingPost, UpcomingPostCreate, UpcomingPostUpdate
 
 
 def create_user(*, session: Session, user_create: UserCreate) -> User:
@@ -52,3 +53,38 @@ def create_item(*, session: Session, item_in: ItemCreate, owner_id: uuid.UUID) -
     session.commit()
     session.refresh(db_item)
     return db_item
+
+
+def create_upcoming_post(*, session: Session, post_create: UpcomingPostCreate, owner_id: uuid.UUID) -> UpcomingPost:
+    db_obj = UpcomingPost.model_validate(post_create, update={"owner_id": owner_id})
+    session.add(db_obj)
+    session.commit()
+    session.refresh(db_obj)
+    return db_obj
+
+
+def get_upcoming_posts_for_user(*, session: Session, owner_id: uuid.UUID, skip: int = 0, limit: int = 100) -> list[UpcomingPost]:
+    return session.exec(select(UpcomingPost).where(UpcomingPost.owner_id == owner_id).offset(skip).limit(limit)).all()
+
+
+def update_upcoming_post(*, session: Session, post_id: uuid.UUID, post_update: UpcomingPostUpdate) -> UpcomingPost | None:
+    db_obj = session.get(UpcomingPost, post_id)
+    if not db_obj:
+        return None
+    post_data = post_update.model_dump(exclude_unset=True)
+    for key, value in post_data.items():
+        setattr(db_obj, key, value)
+    db_obj.updated_at = datetime.utcnow()
+    session.add(db_obj)
+    session.commit()
+    session.refresh(db_obj)
+    return db_obj
+
+
+def delete_upcoming_post(*, session: Session, post_id: uuid.UUID) -> bool:
+    db_obj = session.get(UpcomingPost, post_id)
+    if not db_obj:
+        return False
+    session.delete(db_obj)
+    session.commit()
+    return True

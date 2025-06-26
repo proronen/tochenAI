@@ -1,4 +1,6 @@
 import uuid
+from datetime import datetime
+from typing import List
 
 from pydantic import EmailStr
 from sqlmodel import Field, Relationship, SQLModel
@@ -111,3 +113,47 @@ class TokenPayload(SQLModel):
 class NewPassword(SQLModel):
     token: str
     new_password: str = Field(min_length=8, max_length=40)
+
+
+class UpcomingPostBase(SQLModel):
+    media_url: str = Field(max_length=512)
+    text: str = Field(max_length=1024)
+    hashtags: str = Field(default="", max_length=512)  # comma-separated
+    scheduled_time: datetime
+    to_facebook: bool = True
+    to_instagram: bool = True
+    to_tiktok: bool = True
+
+
+class UpcomingPostCreate(UpcomingPostBase):
+    pass
+
+
+class UpcomingPostUpdate(SQLModel):
+    media_url: str | None = None
+    text: str | None = None
+    hashtags: str | None = None
+    scheduled_time: datetime | None = None
+    to_facebook: bool | None = None
+    to_instagram: bool | None = None
+    to_tiktok: bool | None = None
+
+
+class UpcomingPost(UpcomingPostBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    owner_id: uuid.UUID = Field(foreign_key="user.id", nullable=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    owner: User | None = Relationship(back_populates=None)
+
+
+class UpcomingPostPublic(UpcomingPostBase):
+    id: uuid.UUID
+    owner_id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class UpcomingPostsPublic(SQLModel):
+    data: List[UpcomingPostPublic]
+    count: int

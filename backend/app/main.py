@@ -2,13 +2,18 @@ import sentry_sdk
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from starlette.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import os
 
+from app.utils import random_string
 from app.api.main import api_router
 from app.core.config import settings
 
 
 def custom_generate_unique_id(route: APIRoute) -> str:
-    return f"{route.tags[0]}-{route.name}"
+    if route.tags:
+        return f"{route.tags[0]}-{route.name}"
+    return route.name + "-" + random_string()
 
 
 if settings.SENTRY_DSN and settings.ENVIRONMENT != "local":
@@ -31,3 +36,8 @@ if settings.all_cors_origins:
     )
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), 'uploads')
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+app.mount("/static/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")

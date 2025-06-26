@@ -232,3 +232,36 @@ export type UtilsTestEmailData = {
 export type UtilsTestEmailResponse = Message
 
 export type UtilsHealthCheckResponse = boolean
+
+export type UpcomingPost = {
+  id: string;
+  owner_id: string;
+  media_url: string;
+  text: string;
+  hashtags: string;
+  scheduled_time: string;
+  to_facebook: boolean;
+  to_instagram: boolean;
+  to_tiktok: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type UpcomingPostCreate = {
+  media_url: string;
+  text: string;
+  hashtags: string;
+  scheduled_time: string;
+  to_facebook: boolean;
+  to_instagram: boolean;
+  to_tiktok: boolean;
+};
+
+export type UpcomingPostUpdate = Partial<UpcomingPostCreate>;
+
+export type UpcomingPostPublic = UpcomingPost;
+
+export type UpcomingPostsPublic = {
+  data: UpcomingPostPublic[];
+  count: number;
+};

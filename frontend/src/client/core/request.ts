@@ -12,6 +12,10 @@ import type { ApiResult } from "./ApiResult"
 import { CancelablePromise } from "./CancelablePromise"
 import type { OnCancel } from "./CancelablePromise"
 import type { OpenAPIConfig } from "./OpenAPI"
+import { UpcomingPost, UpcomingPostCreate, UpcomingPostUpdate, UpcomingPostsPublic } from '../types.gen';
+
+// TODO: fix this
+const API_BASE = "http://localhost:8000/api/v1";
 
 export const isString = (value: unknown): value is string => {
   return typeof value === "string"
@@ -384,4 +388,51 @@ export const request = <T>(
       reject(error)
     }
   })
+}
+
+export async function getPostings(): Promise<UpcomingPostsPublic> {
+  const res = await fetch(`${API_BASE}/utils/postings`);
+  if (!res.ok) throw new Error('Failed to fetch postings');
+  return res.json();
+}
+
+export async function createPosting(data: UpcomingPostCreate): Promise<UpcomingPost> {
+  const res = await fetch(`${API_BASE}/utils/postings`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to create posting');
+  return res.json();
+}
+
+export async function updatePosting(id: string, data: UpcomingPostUpdate): Promise<UpcomingPost> {
+  const res = await fetch(`${API_BASE}/utils/postings/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update posting');
+  return res.json();
+}
+
+export async function deletePosting(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/utils/postings/${id}`, {
+    method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete posting');
+}
+
+export async function uploadMedia(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+  console.log('API_BASE', API_BASE);
+  
+  const res = await fetch(`${API_BASE}/utils/upload`, {
+    method: 'POST',
+    body: formData,
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to upload media');
+  const data = await res.json();
+  return data.url;
 }
