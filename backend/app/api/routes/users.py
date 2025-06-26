@@ -212,15 +212,134 @@ def delete_user(
     """
     Delete a user.
     """
-    user = session.get(User, user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    if user == current_user:
+    if current_user.id == user_id:
         raise HTTPException(
             status_code=403, detail="Super users are not allowed to delete themselves"
         )
-    statement = delete(Item).where(col(Item.owner_id) == user_id)
-    session.exec(statement)  # type: ignore
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="The user with this id does not exist in the system",
+        )
     session.delete(user)
     session.commit()
     return Message(message="User deleted successfully")
+
+
+@router.get("/me/quota")
+def get_my_quota_info(session: SessionDep, current_user: CurrentUser) -> Any:
+    """
+    Get current user's quota information.
+    """
+    quota_info = crud.get_user_quota_info(session=session, user_id=current_user.id)
+    if not quota_info:
+        raise HTTPException(status_code=404, detail="User not found")
+    return quota_info
+
+
+@router.get("/{user_id}/quota", dependencies=[Depends(get_current_active_superuser)])
+def get_user_quota_info(
+    session: SessionDep, user_id: uuid.UUID, current_user: CurrentUser
+) -> Any:
+    """
+    Get a specific user's quota information (superuser only).
+    """
+    quota_info = crud.get_user_quota_info(session=session, user_id=user_id)
+    if not quota_info:
+        raise HTTPException(status_code=404, detail="User not found")
+    return quota_info
+
+
+@router.patch("/{user_id}/client-specifics", dependencies=[Depends(get_current_active_superuser)])
+def update_user_client_specifics(
+    *,
+    session: SessionDep,
+    user_id: uuid.UUID,
+    user_in: UserUpdate,
+) -> Any:
+    """
+    Update a user's client-specific information (quota, business description, avatars).
+    """
+    db_user = session.get(User, user_id)
+    if not db_user:
+        raise HTTPException(
+            status_code=404,
+            detail="The user with this id does not exist in the system",
+        )
+    
+    # Only allow updating quota-related fields
+    allowed_fields = ["quota", "business_description", "client_avatars"]
+    update_data = {}
+    for field in allowed_fields:
+        if hasattr(user_in, field) and getattr(user_in, field) is not None:
+            update_data[field] = getattr(user_in, field)
+    
+    if update_data:
+        for key, value in update_data.items():
+            setattr(db_user, key, value)
+        session.add(db_user)
+        session.commit()
+        session.refresh(db_user)
+    
+    return {"message": "Client specifics updated successfully", "user": db_user}
+
+
+@router.post("/me/increment-usage")
+def increment_my_usage(session: SessionDep, current_user: CurrentUser) -> Any:
+    """
+    Increment current user's usage count (for LLM requests).
+    """
+    success = crud.increment_user_usage(session=session, user_id=current_user.id)
+    if not success:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"message": "Usage incremented successfully"}
+
+
+@router.post("/{user_id}/increment-usage", dependencies=[Depends(get_current_active_superuser)])
+def increment_user_usage(
+    session: SessionDep, user_id: uuid.UUID, current_user: CurrentUser
+) -> Any:
+    """
+    Increment a specific user's usage count (superuser only).
+    """
+    success = crud.increment_user_usage(session=session, user_id=user_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"message": "Usage incremented successfully"}
+
+
+@router.get("/me/llm-usage-summary")
+def get_my_llm_usage_summary(session: SessionDep, current_user: CurrentUser) -> Any:
+    """
+    Get current user's LLM usage summary.
+    """
+    usage_summary = crud.get_user_llm_usage_summary(session=session, user_id=current_user.id)
+    if not usage_summary:
+        return {
+            "total_requests": 0,
+            "total_tokens": 0,
+            "total_cost_usd": 0.0,
+            "requests_by_provider": {},
+            "requests_by_type": {}
+        }
+    return usage_summary
+
+
+@router.get("/{user_id}/llm-usage-summary", dependencies=[Depends(get_current_active_superuser)])
+def get_user_llm_usage_summary(
+    session: SessionDep, user_id: uuid.UUID, current_user: CurrentUser
+) -> Any:
+    """
+    Get a specific user's LLM usage summary (superuser only).
+    """
+    usage_summary = crud.get_user_llm_usage_summary(session=session, user_id=user_id)
+    if not usage_summary:
+        return {
+            "total_requests": 0,
+            "total_tokens": 0,
+            "total_cost_usd": 0.0,
+            "requests_by_provider": {},
+            "requests_by_type": {}
+        }
+    return usage_summary

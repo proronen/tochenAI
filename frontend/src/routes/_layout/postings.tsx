@@ -10,8 +10,8 @@ import {
   Input,
   VStack,
 } from '@chakra-ui/react';
-import { getPostings, createPosting, updatePosting, deletePosting, uploadMedia } from '../client/core/request';
-import { UpcomingPost, UpcomingPostCreate } from '../client/types.gen';
+import { getPostings, createPosting, updatePosting, deletePosting, uploadMedia } from '../../client/core/request';
+import { UpcomingPost, UpcomingPostCreate } from '../../client/types.gen';
 import { FaFacebook, FaInstagram, FaTiktok } from 'react-icons/fa6';
 import { FaPen, FaTrashAlt, FaPlus } from 'react-icons/fa';
 import {
@@ -22,10 +22,10 @@ import {
   DialogFooter,
   DialogTrigger,
   DialogCloseTrigger,
-} from '../components/ui/dialog';
-import { Field } from '../components/ui/field';
-import { Button } from '../components/ui/button';
-import useCustomToast from '../hooks/useCustomToast';
+} from '../../components/ui/dialog';
+import { Field } from '../../components/ui/field';
+import { Button } from '../../components/ui/button';
+import useCustomToast from '../../hooks/useCustomToast';
 import { createFileRoute } from "@tanstack/react-router";
 import { addDays, format } from 'date-fns';
 
@@ -366,6 +366,6 @@ const PostingsPage = () => {
   );
 };
 
-export const Route = createFileRoute("/postings")({
+export const Route = createFileRoute("/_layout/postings")({
   component: PostingsPage,
 }); 

@@ -12,6 +12,10 @@ class UserBase(SQLModel):
     is_active: bool = True
     is_superuser: bool = False
     full_name: str | None = Field(default=None, max_length=255)
+    quota: int = Field(default=1000)  # LLM request quota
+    usage_count: int = Field(default=0)  # Current usage count
+    business_description: str | None = Field(default=None, max_length=2000)  # Client business description
+    client_avatars: str | None = Field(default=None, max_length=2000)  # Client avatars description
 
 
 # Properties to receive via API on creation
@@ -29,6 +33,10 @@ class UserRegister(SQLModel):
 class UserUpdate(UserBase):
     email: EmailStr | None = Field(default=None, max_length=255)  # type: ignore
     password: str | None = Field(default=None, min_length=8, max_length=40)
+    quota: int | None = None
+    usage_count: int | None = None
+    business_description: str | None = None
+    client_avatars: str | None = None
 
 
 class UserUpdateMe(SQLModel):
@@ -197,3 +205,40 @@ class SocialAccountPublic(SocialAccountBase):
 class SocialAccountsPublic(SQLModel):
     data: List[SocialAccountPublic]
     count: int
+
+
+class LLMUsageBase(SQLModel):
+    provider: str = Field(max_length=32)  # openai, anthropic, etc.
+    model: str = Field(max_length=64)  # gpt-4, claude-3, etc.
+    prompt_tokens: int = Field(default=0)
+    completion_tokens: int = Field(default=0)
+    total_tokens: int = Field(default=0)
+    cost_usd: float = Field(default=0.0)
+    request_type: str = Field(max_length=64)  # post_generation, hashtag_generation, etc.
+    success: bool = Field(default=True)
+    error_message: str | None = Field(default=None, max_length=512)
+
+
+class LLMUsageCreate(LLMUsageBase):
+    pass
+
+
+class LLMUsage(LLMUsageBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id", nullable=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    user: User | None = Relationship(back_populates=None)
+
+
+class LLMUsagePublic(LLMUsageBase):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    created_at: datetime
+
+
+class LLMUsageSummary(SQLModel):
+    total_requests: int
+    total_tokens: int
+    total_cost_usd: float
+    requests_by_provider: dict[str, int]
+    requests_by_type: dict[str, int]

@@ -2,10 +2,10 @@ import uuid
 from typing import Any
 from datetime import datetime
 
-from sqlmodel import Session, select
+from sqlmodel import Session, select, func
 
 from app.core.security import get_password_hash, verify_password
-from app.models import Item, ItemCreate, User, UserCreate, UserUpdate, UpcomingPost, UpcomingPostCreate, UpcomingPostUpdate
+from app.models import Item, ItemCreate, User, UserCreate, UserUpdate, UpcomingPost, UpcomingPostCreate, UpcomingPostUpdate, LLMUsage, LLMUsageCreate, LLMUsageSummary
 
 
 def create_user(*, session: Session, user_create: UserCreate) -> User:
@@ -30,6 +30,92 @@ def update_user(*, session: Session, db_user: User, user_in: UserUpdate) -> Any:
     session.commit()
     session.refresh(db_user)
     return db_user
+
+
+def increment_user_usage(*, session: Session, user_id: uuid.UUID) -> bool:
+    """Increment the usage count for a user"""
+    db_user = session.get(User, user_id)
+    if not db_user:
+        return False
+    db_user.usage_count += 1
+    session.add(db_user)
+    session.commit()
+    session.refresh(db_user)
+    return True
+
+
+def check_user_quota(*, session: Session, user_id: uuid.UUID) -> bool:
+    """Check if user has quota remaining (superusers have unlimited quota)"""
+    db_user = session.get(User, user_id)
+    if not db_user:
+        return False
+    if db_user.is_superuser:
+        return True
+    return db_user.usage_count < db_user.quota
+
+
+def get_user_quota_info(*, session: Session, user_id: uuid.UUID) -> dict[str, Any] | None:
+    """Get user's quota information"""
+    db_user = session.get(User, user_id)
+    if not db_user:
+        return None
+    return {
+        "quota": db_user.quota,
+        "usage_count": db_user.usage_count,
+        "remaining": db_user.quota - db_user.usage_count if not db_user.is_superuser else "unlimited",
+        "is_superuser": db_user.is_superuser
+    }
+
+
+def create_llm_usage(*, session: Session, usage_create: LLMUsageCreate, user_id: uuid.UUID) -> LLMUsage:
+    """Create a new LLM usage record"""
+    db_obj = LLMUsage.model_validate(usage_create, update={"user_id": user_id})
+    session.add(db_obj)
+    session.commit()
+    session.refresh(db_obj)
+    return db_obj
+
+
+def get_user_llm_usage_summary(*, session: Session, user_id: uuid.UUID) -> LLMUsageSummary | None:
+    """Get LLM usage summary for a user"""
+    # Get total counts
+    total_requests = session.exec(
+        select(func.count(LLMUsage.id)).where(LLMUsage.user_id == user_id)
+    ).one()
+    
+    total_tokens = session.exec(
+        select(func.sum(LLMUsage.total_tokens)).where(LLMUsage.user_id == user_id)
+    ).one() or 0
+    
+    total_cost = session.exec(
+        select(func.sum(LLMUsage.cost_usd)).where(LLMUsage.user_id == user_id)
+    ).one() or 0.0
+    
+    # Get requests by provider
+    provider_counts = session.exec(
+        select(LLMUsage.provider, func.count(LLMUsage.id))
+        .where(LLMUsage.user_id == user_id)
+        .group_by(LLMUsage.provider)
+    ).all()
+    
+    requests_by_provider = {provider: count for provider, count in provider_counts}
+    
+    # Get requests by type
+    type_counts = session.exec(
+        select(LLMUsage.request_type, func.count(LLMUsage.id))
+        .where(LLMUsage.user_id == user_id)
+        .group_by(LLMUsage.request_type)
+    ).all()
+    
+    requests_by_type = {req_type: count for req_type, count in type_counts}
+    
+    return LLMUsageSummary(
+        total_requests=total_requests,
+        total_tokens=total_tokens,
+        total_cost_usd=total_cost,
+        requests_by_provider=requests_by_provider,
+        requests_by_type=requests_by_type
+    )
 
 
 def get_user_by_email(*, session: Session, email: str) -> User | None:

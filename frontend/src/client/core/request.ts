@@ -436,3 +436,69 @@ export async function uploadMedia(file: File): Promise<string> {
   const data = await res.json();
   return data.url;
 }
+
+export async function getAllUsers(): Promise<{ data: any[] }> {
+  const res = await fetch(`${API_BASE}/users/`, {
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to fetch users');
+  return res.json();
+}
+
+export async function updateClientSpecifics(userId: string, data: Partial<any>): Promise<any> {
+  const res = await fetch(`${API_BASE}/users/${userId}/client-specifics`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update client specifics');
+  return res.json();
+}
+
+export async function generateContent(prompt: string, provider: string = "openai", model: string = "gpt-4", maxTokens: number = 1000): Promise<any> {
+  const res = await fetch(`${API_BASE}/llm/generate-content`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ prompt, provider, model, max_tokens: maxTokens }),
+  });
+  if (!res.ok) throw new Error('Failed to generate content');
+  return res.json();
+}
+
+export async function generatePost(businessDescription: string, clientAvatars?: string, platform: string = "general", tone: string = "professional", maxTokens: number = 500): Promise<any> {
+  const res = await fetch(`${API_BASE}/llm/generate-post`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ 
+      business_description: businessDescription, 
+      client_avatars: clientAvatars, 
+      platform, 
+      tone, 
+      max_tokens: maxTokens 
+    }),
+  });
+  if (!res.ok) throw new Error('Failed to generate post');
+  return res.json();
+}
+
+export async function generateHashtags(content: string, platform: string = "general", count: number = 10, maxTokens: number = 200): Promise<any> {
+  const res = await fetch(`${API_BASE}/llm/generate-hashtags`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ content, platform, count, max_tokens: maxTokens }),
+  });
+  if (!res.ok) throw new Error('Failed to generate hashtags');
+  return res.json();
+}
+
+export async function getLLMProviders(): Promise<any> {
+  const res = await fetch(`${API_BASE}/llm/providers`, {
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to fetch LLM providers');
+  return res.json();
+}

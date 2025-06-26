@@ -2,7 +2,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, Optional
 import string
 import random
 import emails  # type: ignore
@@ -10,9 +10,13 @@ import jwt
 from jinja2 import Template
 from jwt.exceptions import InvalidTokenError
 import requests
+import os
+import uuid
 
 from app.core import security
 from app.core.config import settings
+from app.models import LLMUsageCreate
+from app.crud import check_user_quota, increment_user_usage, create_llm_usage
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -193,3 +197,218 @@ class InstagramClient:
         publish_response = requests.post(publish_url, data=publish_payload)
         publish_response.raise_for_status()
         return publish_response.json()
+
+
+# LLM Cost per 1K tokens (approximate)
+LLM_COSTS = {
+    "openai": {
+        "gpt-4": {"input": 0.03, "output": 0.06},  # per 1K tokens
+        "gpt-3.5-turbo": {"input": 0.0015, "output": 0.002},
+        "gpt-4o": {"input": 0.005, "output": 0.015},
+    },
+    "anthropic": {
+        "claude-3-opus": {"input": 0.015, "output": 0.075},
+        "claude-3-sonnet": {"input": 0.003, "output": 0.015},
+        "claude-3-haiku": {"input": 0.00025, "output": 0.00125},
+    }
+}
+
+
+def calculate_llm_cost(provider: str, model: str, prompt_tokens: int, completion_tokens: int) -> float:
+    """Calculate the cost of an LLM request"""
+    if provider not in LLM_COSTS or model not in LLM_COSTS[provider]:
+        return 0.0
+    
+    costs = LLM_COSTS[provider][model]
+    input_cost = (prompt_tokens / 1000) * costs["input"]
+    output_cost = (completion_tokens / 1000) * costs["output"]
+    return input_cost + output_cost
+
+
+def enforce_quota_and_track_usage(
+    session,
+    user_id: uuid.UUID,
+    provider: str,
+    model: str,
+    request_type: str,
+    prompt_tokens: int,
+    completion_tokens: int,
+    success: bool = True,
+    error_message: Optional[str] = None
+) -> bool:
+    """
+    Enforce quota and track LLM usage for a user.
+    Returns True if quota check passed, False otherwise.
+    """
+    # Check quota first
+    if not check_user_quota(session=session, user_id=user_id):
+        return False
+    
+    # Calculate cost
+    total_tokens = prompt_tokens + completion_tokens
+    cost_usd = calculate_llm_cost(provider, model, prompt_tokens, completion_tokens)
+    
+    # Create usage record
+    usage_create = LLMUsageCreate(
+        provider=provider,
+        model=model,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        total_tokens=total_tokens,
+        cost_usd=cost_usd,
+        request_type=request_type,
+        success=success,
+        error_message=error_message
+    )
+    
+    create_llm_usage(session=session, usage_create=usage_create, user_id=user_id)
+    
+    # Increment usage count only on success
+    if success:
+        increment_user_usage(session=session, user_id=user_id)
+    
+    return True
+
+
+class LLMClient:
+    """Base LLM client with quota enforcement"""
+    
+    def __init__(self, session, user_id: uuid.UUID):
+        self.session = session
+        self.user_id = user_id
+    
+    def _enforce_quota_and_track(self, provider: str, model: str, request_type: str, 
+                                prompt_tokens: int, completion_tokens: int, 
+                                success: bool = True, error_message: Optional[str] = None) -> bool:
+        return enforce_quota_and_track_usage(
+            session=self.session,
+            user_id=self.user_id,
+            provider=provider,
+            model=model,
+            request_type=request_type,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            success=success,
+            error_message=error_message
+        )
+
+
+class OpenAIClient(LLMClient):
+    """OpenAI client with quota enforcement"""
+    
+    def __init__(self, session, user_id: uuid.UUID, api_key: Optional[str] = None):
+        super().__init__(session, user_id)
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+        self.base_url = "https://api.openai.com/v1"
+    
+    def generate_content(self, prompt: str, model: str = "gpt-4", max_tokens: int = 1000) -> Dict[str, Any]:
+        """Generate content using OpenAI API with quota enforcement"""
+        try:
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            payload = {
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": max_tokens
+            }
+            
+            response = requests.post(f"{self.base_url}/chat/completions", headers=headers, json=payload)
+            response.raise_for_status()
+            
+            result = response.json()
+            usage = result.get("usage", {})
+            prompt_tokens = usage.get("prompt_tokens", 0)
+            completion_tokens = usage.get("completion_tokens", 0)
+            
+            # Track usage
+            self._enforce_quota_and_track(
+                provider="openai",
+                model=model,
+                request_type="content_generation",
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                success=True
+            )
+            
+            return {
+                "content": result["choices"][0]["message"]["content"],
+                "tokens_used": prompt_tokens + completion_tokens,
+                "cost_usd": calculate_llm_cost("openai", model, prompt_tokens, completion_tokens)
+            }
+            
+        except Exception as e:
+            # Track failed request
+            self._enforce_quota_and_track(
+                provider="openai",
+                model=model,
+                request_type="content_generation",
+                prompt_tokens=0,
+                completion_tokens=0,
+                success=False,
+                error_message=str(e)
+            )
+            raise
+
+
+class AnthropicClient(LLMClient):
+    """Anthropic client with quota enforcement"""
+    
+    def __init__(self, session, user_id: uuid.UUID, api_key: Optional[str] = None):
+        super().__init__(session, user_id)
+        self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
+        self.base_url = "https://api.anthropic.com/v1"
+    
+    def generate_content(self, prompt: str, model: str = "claude-3-sonnet", max_tokens: int = 1000) -> Dict[str, Any]:
+        """Generate content using Anthropic API with quota enforcement"""
+        try:
+            headers = {
+                "x-api-key": self.api_key,
+                "Content-Type": "application/json",
+                "anthropic-version": "2023-06-01"
+            }
+            
+            payload = {
+                "model": model,
+                "max_tokens": max_tokens,
+                "messages": [{"role": "user", "content": prompt}]
+            }
+            
+            response = requests.post(f"{self.base_url}/messages", headers=headers, json=payload)
+            response.raise_for_status()
+            
+            result = response.json()
+            usage = result.get("usage", {})
+            prompt_tokens = usage.get("input_tokens", 0)
+            completion_tokens = usage.get("output_tokens", 0)
+            
+            # Track usage
+            self._enforce_quota_and_track(
+                provider="anthropic",
+                model=model,
+                request_type="content_generation",
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                success=True
+            )
+            
+            return {
+                "content": result["content"][0]["text"],
+                "tokens_used": prompt_tokens + completion_tokens,
+                "cost_usd": calculate_llm_cost("anthropic", model, prompt_tokens, completion_tokens)
+            }
+            
+        except Exception as e:
+            # Track failed request
+            self._enforce_quota_and_track(
+                provider="anthropic",
+                model=model,
+                request_type="content_generation",
+                prompt_tokens=0,
+                completion_tokens=0,
+                success=False,
+                error_message=str(e)
+            )
+            raise
