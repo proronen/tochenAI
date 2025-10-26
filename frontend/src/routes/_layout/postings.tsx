@@ -11,9 +11,9 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import { getPostings, createPosting, updatePosting, deletePosting, uploadMedia } from '../../client/core/request';
-import { UpcomingPost, UpcomingPostCreate } from '../../client/types.gen';
+import { UpcomingPostPublic, UpcomingPostCreate } from '../../client/types.gen';
 import { FaFacebook, FaInstagram, FaTiktok } from 'react-icons/fa6';
-import { FaPen, FaTrashAlt, FaPlus } from 'react-icons/fa';
+import { FaPen, FaTrashAlt, FaPlus, FaLightbulb } from 'react-icons/fa';
 import {
   DialogRoot,
   DialogContent,
@@ -28,6 +28,7 @@ import { Button } from '../../components/ui/button';
 import useCustomToast from '../../hooks/useCustomToast';
 import { createFileRoute } from "@tanstack/react-router";
 import { addDays, format } from 'date-fns';
+import PostIdeasModal from '../../components/PostIdeas/PostIdeasModal';
 
 const defaultForm: Omit<UpcomingPostCreate, 'scheduled_time'> & { scheduled_time: string } = {
   media_url: '',
@@ -52,13 +53,14 @@ const SocialToggle = ({ icon, isChecked, onChange }: { icon: React.ReactNode, is
 );
 
 const PostingsPage = () => {
-  const [posts, setPosts] = useState<UpcomingPost[]>([]);
+  const [posts, setPosts] = useState<UpcomingPostPublic[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
   const [editId, setEditId] = useState<string | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isIdeasModalOpen, setIsIdeasModalOpen] = useState(false);
   const toast = useCustomToast();
   const [filter, setFilter] = useState({ text: '', hashtag: '', facebook: true, instagram: true, tiktok: true });
   const [formError, setFormError] = useState<string | null>(null);
@@ -145,16 +147,16 @@ const PostingsPage = () => {
     }
   };
 
-  const handleEdit = (post: UpcomingPost) => {
+  const handleEdit = (post: UpcomingPostPublic) => {
     setEditId(post.id);
     setForm({
       media_url: post.media_url,
       text: post.text,
-      hashtags: post.hashtags,
+      hashtags: post.hashtags || '',
       scheduled_time: post.scheduled_time.slice(0, 16),
-      to_facebook: post.to_facebook,
-      to_instagram: post.to_instagram,
-      to_tiktok: post.to_tiktok,
+      to_facebook: post.to_facebook ?? true,
+      to_instagram: post.to_instagram ?? true,
+      to_tiktok: post.to_tiktok ?? true,
     });
     setIsEditOpen(true);
   };
@@ -216,51 +218,60 @@ const PostingsPage = () => {
     <Box p={6}>
       <HStack justify="space-between" mb={4}>
         <Text fontSize="2xl">Upcoming Postings</Text>
-        <DialogRoot open={isCreateOpen} onOpenChange={({ open }) => setIsCreateOpen(open)}>
-          <DialogTrigger asChild>
-            <Button colorScheme="blue" onClick={() => setForm(defaultForm)}><FaPlus style={{ marginRight: 8 }} />New Posting</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <form onSubmit={handleCreate}>
-              <DialogHeader>New Posting</DialogHeader>
-              <DialogBody>
-                <VStack gap={4} alignItems="stretch">
-                  <Field required label="Media">
-                    <Input type="file" accept="image/*,video/*" onChange={handleFileChange} disabled={fileUploading} />
-                    {selectedFile && <Text fontSize="sm" color="gray.500">Selected: {selectedFile.name}</Text>}
-                    {form.media_url && !selectedFile && (
-                      form.media_url.match(/\.(mp4|webm|ogg)$/i)
-                        ? <video src={form.media_url} width={80} height={80} controls style={{ borderRadius: 8, marginTop: 8 }} />
-                        : <Image src={form.media_url} boxSize="80px" objectFit="cover" borderRadius={8} mt={2} />
-                    )}
-                  </Field>
-                  {formError && <Text color="red.500">{formError}</Text>}
-                  <Field required label="Main Text">
-                    <Input name="text" value={form.text} onChange={handleInput} placeholder="Main text" />
-                  </Field>
-                  <Field label="Hashtags (comma separated)">
-                    <Input name="hashtags" value={form.hashtags} onChange={handleInput} placeholder="tag1, tag2" />
-                  </Field>
-                  <Field required label="Scheduled Time">
-                    <Input name="scheduled_time" type="datetime-local" value={form.scheduled_time} onChange={handleInput} />
-                  </Field>
-                  <HStack>
-                    <SocialToggle icon={<FaFacebook />} isChecked={form.to_facebook} onChange={() => setForm(f => ({ ...f, to_facebook: !f.to_facebook }))} />
-                    <SocialToggle icon={<FaInstagram />} isChecked={form.to_instagram} onChange={() => setForm(f => ({ ...f, to_instagram: !f.to_instagram }))} />
-                    <SocialToggle icon={<FaTiktok />} isChecked={form.to_tiktok} onChange={() => setForm(f => ({ ...f, to_tiktok: !f.to_tiktok }))} />
-                  </HStack>
-                </VStack>
-              </DialogBody>
-              <DialogFooter gap={2}>
-                 {/* TODO: causes Warning: validateDOMNesting... */}
-                <DialogCloseTrigger asChild>
-                  <Button variant="subtle" colorPalette="gray">Cancel</Button>
-                </DialogCloseTrigger>
-                <Button type="submit" colorScheme="blue">Create</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </DialogRoot>
+        <HStack gap={2}>
+          <Button 
+            colorScheme="purple" 
+            onClick={() => setIsIdeasModalOpen(true)}
+          >
+            <FaLightbulb style={{ marginRight: 8 }} />
+            Generate Ideas
+          </Button>
+          <DialogRoot open={isCreateOpen} onOpenChange={({ open }) => setIsCreateOpen(open)}>
+            <DialogTrigger asChild>
+              <Button colorScheme="blue" onClick={() => setForm(defaultForm)}><FaPlus style={{ marginRight: 8 }} />New Posting</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <form onSubmit={handleCreate}>
+                <DialogHeader>New Posting</DialogHeader>
+                <DialogBody>
+                  <VStack gap={4} alignItems="stretch">
+                    <Field required label="Media">
+                      <Input type="file" accept="image/*,video/*" onChange={handleFileChange} disabled={fileUploading} />
+                      {selectedFile && <Text fontSize="sm" color="gray.500">Selected: {selectedFile.name}</Text>}
+                      {form.media_url && !selectedFile && (
+                        form.media_url.match(/\.(mp4|webm|ogg)$/i)
+                          ? <video src={form.media_url} width={80} height={80} controls style={{ borderRadius: 8, marginTop: 8 }} />
+                          : <Image src={form.media_url} boxSize="80px" objectFit="cover" borderRadius={8} mt={2} />
+                      )}
+                    </Field>
+                    {formError && <Text color="red.500">{formError}</Text>}
+                    <Field required label="Main Text">
+                      <Input name="text" value={form.text} onChange={handleInput} placeholder="Main text" />
+                    </Field>
+                    <Field label="Hashtags (comma separated)">
+                      <Input name="hashtags" value={form.hashtags} onChange={handleInput} placeholder="tag1, tag2" />
+                    </Field>
+                    <Field required label="Scheduled Time">
+                      <Input name="scheduled_time" type="datetime-local" value={form.scheduled_time} onChange={handleInput} />
+                    </Field>
+                    <HStack>
+                      <SocialToggle icon={<FaFacebook />} isChecked={form.to_facebook} onChange={() => setForm(f => ({ ...f, to_facebook: !f.to_facebook }))} />
+                      <SocialToggle icon={<FaInstagram />} isChecked={form.to_instagram} onChange={() => setForm(f => ({ ...f, to_instagram: !f.to_instagram }))} />
+                      <SocialToggle icon={<FaTiktok />} isChecked={form.to_tiktok} onChange={() => setForm(f => ({ ...f, to_tiktok: !f.to_tiktok }))} />
+                    </HStack>
+                  </VStack>
+                </DialogBody>
+                <DialogFooter gap={2}>
+                   {/* TODO: causes Warning: validateDOMNesting... */}
+                  <DialogCloseTrigger asChild>
+                    <Button variant="subtle" colorPalette="gray">Cancel</Button>
+                  </DialogCloseTrigger>
+                  <Button type="submit" colorScheme="blue">Create</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </DialogRoot>
+        </HStack>
       </HStack>
       <HStack gap={4} alignItems="center" mb={4}>
         <Input placeholder="Filter by text" value={filter.text} onChange={e => setFilter(f => ({ ...f, text: e.target.value }))} maxW="200px" />
@@ -290,23 +301,23 @@ const PostingsPage = () => {
                   : <Image src={post.media_url} boxSize="80px" objectFit="cover" borderRadius={8} />}
               </Table.Cell>
               <Table.Cell>{post.text}</Table.Cell>
-              <Table.Cell>{post.hashtags.split(',').map(tag => <Text as="span" key={tag} color="gray.500" mr={1}>#{tag.trim()}</Text>)}</Table.Cell>
+              <Table.Cell>{post.hashtags?.split(',').map(tag => <Text as="span" key={tag} color="gray.500" mr={1}>#{tag.trim()}</Text>) || ''}</Table.Cell>
               <Table.Cell>
-                <HStack spacing={2}>
+                <HStack gap={2}>
                   <SocialToggle
                     icon={<FaFacebook />}
-                    isChecked={post.to_facebook}
-                    onChange={() => handleToggle(post.id, 'to_facebook', post.to_facebook)}
+                    isChecked={post.to_facebook ?? true}
+                    onChange={() => handleToggle(post.id, 'to_facebook', post.to_facebook ?? true)}
                   />
                   <SocialToggle
                     icon={<FaInstagram />}
-                    isChecked={post.to_instagram}
-                    onChange={() => handleToggle(post.id, 'to_instagram', post.to_instagram)}
+                    isChecked={post.to_instagram ?? true}
+                    onChange={() => handleToggle(post.id, 'to_instagram', post.to_instagram ?? true)}
                   />
                   <SocialToggle
                     icon={<FaTiktok />}
-                    isChecked={post.to_tiktok}
-                    onChange={() => handleToggle(post.id, 'to_tiktok', post.to_tiktok)}
+                    isChecked={post.to_tiktok ?? true}
+                    onChange={() => handleToggle(post.id, 'to_tiktok', post.to_tiktok ?? true)}
                   />
                   {updating === post.id && <Spinner size="sm" />}
                 </HStack>
@@ -362,6 +373,15 @@ const PostingsPage = () => {
           </form>
         </DialogContent>
       </DialogRoot>
+
+      <PostIdeasModal
+        isOpen={isIdeasModalOpen}
+        onClose={() => setIsIdeasModalOpen(false)}
+        onPostCreated={() => {
+          setIsIdeasModalOpen(false);
+          fetchPosts();
+        }}
+      />
     </Box>
   );
 };

@@ -31,10 +31,10 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 @router.get(
     "/",
-    dependencies=[Depends(get_current_active_superuser)],
+    # dependencies=[Depends(get_current_active_superuser)],
     response_model=UsersPublic,
 )
-def read_users(session: SessionDep, skip: int = 0, limit: int = 100) -> Any:
+def read_users(session: SessionDep, current_user: CurrentUser, skip: int = 0, limit: int = 100) -> Any:
     """
     Retrieve users.
     """
@@ -42,10 +42,14 @@ def read_users(session: SessionDep, skip: int = 0, limit: int = 100) -> Any:
     count_statement = select(func.count()).select_from(User)
     count = session.exec(count_statement).one()
 
-    statement = select(User).offset(skip).limit(limit)
-    users = session.exec(statement).all()
-
-    return UsersPublic(data=users, count=count)
+    if not current_user.is_superuser:
+        statement = select(User).where(User.email == current_user.email).offset(skip).limit(limit)
+        users = session.exec(statement).all()
+        return UsersPublic(data=users)
+    else:
+        statement = select(User).offset(skip).limit(limit)
+        users = session.exec(statement).all()
+        return UsersPublic(data=users, count=count)
 
 
 @router.post(
@@ -251,7 +255,7 @@ def get_user_quota_info(
     return quota_info
 
 
-@router.patch("/{user_id}/client-specifics", dependencies=[Depends(get_current_active_superuser)])
+@router.patch("/{user_id}/client-specifics")
 def update_user_client_specifics(
     *,
     session: SessionDep,
@@ -326,13 +330,21 @@ def get_my_llm_usage_summary(session: SessionDep, current_user: CurrentUser) -> 
     return usage_summary
 
 
-@router.get("/{user_id}/llm-usage-summary", dependencies=[Depends(get_current_active_superuser)])
+@router.get("/{user_id}/llm-usage-summary")
 def get_user_llm_usage_summary(
     session: SessionDep, user_id: uuid.UUID, current_user: CurrentUser
 ) -> Any:
     """
-    Get a specific user's LLM usage summary (superuser only).
+    Get a specific user's LLM usage summary.
+    Users can only access their own data unless they are superusers.
     """
+    # Security check: users can only access their own data unless they are superusers
+    if current_user.id != user_id and not current_user.is_superuser:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only access your own LLM usage summary"
+        )
+    
     usage_summary = crud.get_user_llm_usage_summary(session=session, user_id=user_id)
     if not usage_summary:
         return {

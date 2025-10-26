@@ -12,10 +12,7 @@ import type { ApiResult } from "./ApiResult"
 import { CancelablePromise } from "./CancelablePromise"
 import type { OnCancel } from "./CancelablePromise"
 import type { OpenAPIConfig } from "./OpenAPI"
-import { UpcomingPost, UpcomingPostCreate, UpcomingPostUpdate, UpcomingPostsPublic } from '../types.gen';
-
-// TODO: fix this
-const API_BASE = "http://localhost:8000/api/v1";
+import { OpenAPI } from "./OpenAPI"
 
 export const isString = (value: unknown): value is string => {
   return typeof value === "string"
@@ -390,65 +387,31 @@ export const request = <T>(
   })
 }
 
-export async function getPostings(): Promise<UpcomingPostsPublic> {
-  const res = await fetch(`${API_BASE}/utils/postings`);
-  if (!res.ok) throw new Error('Failed to fetch postings');
-  return res.json();
-}
-
-export async function createPosting(data: UpcomingPostCreate): Promise<UpcomingPost> {
-  const res = await fetch(`${API_BASE}/utils/postings`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error('Failed to create posting');
-  return res.json();
-}
-
-export async function updatePosting(id: string, data: UpcomingPostUpdate): Promise<UpcomingPost> {
-  const res = await fetch(`${API_BASE}/utils/postings/${id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error('Failed to update posting');
-  return res.json();
-}
-
-export async function deletePosting(id: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/utils/postings/${id}`, {
-    method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete posting');
-}
-
-export async function uploadMedia(file: File): Promise<string> {
-  const formData = new FormData();
-  formData.append('file', file);
-  console.log('API_BASE', API_BASE);
-  
-  const res = await fetch(`${API_BASE}/utils/upload`, {
-    method: 'POST',
-    body: formData,
+export async function getAllUsers(): Promise<any> {
+  const res = await fetch(`http://localhost:8000/api/v1/users`, {
     credentials: 'include',
-  });
-  if (!res.ok) throw new Error('Failed to upload media');
-  const data = await res.json();
-  return data.url;
-}
-
-export async function getAllUsers(): Promise<{ data: any[] }> {
-  const res = await fetch(`${API_BASE}/users/`, {
-    credentials: 'include',
+    headers: { Authorization: `Bearer ${localStorage.access_token}` }
   });
   if (!res.ok) throw new Error('Failed to fetch users');
   return res.json();
 }
 
-export async function updateClientSpecifics(userId: string, data: Partial<any>): Promise<any> {
-  const res = await fetch(`${API_BASE}/users/${userId}/client-specifics`, {
+export async function getLLMUsageSummary(userId: string): Promise<any> {
+  const res = await fetch(`http://localhost:8000/api/v1/users/${userId}/llm-usage-summary`, {
+    credentials: 'include',
+    headers: { Authorization: `Bearer ${localStorage.access_token}` }
+  });
+  if (!res.ok) throw new Error('Failed to fetch LLM usage summary');
+  return res.json();
+}
+
+export async function updateClientSpecifics(userId: string, data: any): Promise<any> {
+  const res = await fetch(`http://localhost:8000/api/v1/users/${userId}/client-specifics`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${localStorage.access_token}`
+    },
     credentials: 'include',
     body: JSON.stringify(data),
   });
@@ -456,49 +419,170 @@ export async function updateClientSpecifics(userId: string, data: Partial<any>):
   return res.json();
 }
 
-export async function generateContent(prompt: string, provider: string = "openai", model: string = "gpt-4", maxTokens: number = 1000): Promise<any> {
-  const res = await fetch(`${API_BASE}/llm/generate-content`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+export async function getPostings(): Promise<any> {
+  const res = await fetch(`http://localhost:8000/api/v1/utils/postings`, {
     credentials: 'include',
-    body: JSON.stringify({ prompt, provider, model, max_tokens: maxTokens }),
+    headers: { Authorization: `Bearer ${localStorage.access_token}` }
   });
-  if (!res.ok) throw new Error('Failed to generate content');
+  if (!res.ok) throw new Error('Failed to fetch postings');
   return res.json();
 }
 
-export async function generatePost(businessDescription: string, clientAvatars?: string, platform: string = "general", tone: string = "professional", maxTokens: number = 500): Promise<any> {
-  const res = await fetch(`${API_BASE}/llm/generate-post`, {
+export async function createPosting(data: any): Promise<any> {
+  const res = await fetch(`http://localhost:8000/api/v1/utils/postings`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${localStorage.access_token}`
+    },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to create posting');
+  return res.json();
+}
+
+export async function updatePosting(id: string, data: any): Promise<any> {
+  const res = await fetch(`http://localhost:8000/api/v1/utils/postings/${id}`, {
+    method: 'PATCH',
+    headers: { 
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${localStorage.access_token}`
+    },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update posting');
+  return res.json();
+}
+
+export async function deletePosting(id: string): Promise<any> {
+  const res = await fetch(`http://localhost:8000/api/v1/utils/postings/${id}`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { Authorization: `Bearer ${localStorage.access_token}` }
+  });
+  if (!res.ok) throw new Error('Failed to delete posting');
+  return res.json();
+}
+
+export async function uploadMedia(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const res = await fetch(`http://localhost:8000/api/v1/utils/upload`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Authorization: `Bearer ${localStorage.access_token}` },
+    body: formData,
+  });
+  if (!res.ok) throw new Error('Failed to upload media');
+  const result = await res.json();
+  return result.url;
+}
+
+export async function generatePostIdeas(
+  businessDescription: string, 
+  clientAvatars?: string, 
+  additionalInstructions?: string,
+  provider: string = "gemini",
+  model: string = "gemini-1.5-flash",
+  count: number = 5
+): Promise<any> {
+  const res = await fetch(`http://localhost:8000/api/v1/llm/generate-post-ideas`, {
+    method: 'POST',
+    headers: { 
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${localStorage.access_token}`
+    },
     credentials: 'include',
     body: JSON.stringify({ 
       business_description: businessDescription, 
       client_avatars: clientAvatars, 
-      platform, 
-      tone, 
-      max_tokens: maxTokens 
+      additional_instructions: additionalInstructions,
+      provider,
+      model,
+      count
     }),
   });
-  if (!res.ok) throw new Error('Failed to generate post');
+  if (!res.ok) throw new Error('Failed to generate post ideas');
   return res.json();
 }
 
-export async function generateHashtags(content: string, platform: string = "general", count: number = 10, maxTokens: number = 200): Promise<any> {
-  const res = await fetch(`${API_BASE}/llm/generate-hashtags`, {
+export async function generatePostContent(
+  postIdea: string,
+  businessDescription: string,
+  clientAvatars?: string,
+  platform: string = "general",
+  tone: string = "professional",
+  provider: string = "gemini",
+  model: string = "gemini-1.5-flash"
+): Promise<any> {
+  const res = await fetch(`http://localhost:8000/api/v1/llm/generate-post-content`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${localStorage.access_token}`
+    },
     credentials: 'include',
-    body: JSON.stringify({ content, platform, count, max_tokens: maxTokens }),
+    body: JSON.stringify({ 
+      post_idea: postIdea,
+      business_description: businessDescription, 
+      client_avatars: clientAvatars, 
+      platform,
+      tone,
+      provider,
+      model
+    }),
+  });
+  if (!res.ok) throw new Error('Failed to generate post content');
+  return res.json();
+}
+
+export async function generateHashtags(
+  content: string,
+  platform: string = "general",
+  numHashtags: number = 5,
+  provider: string = "gemini",
+  model: string = "gemini-1.5-flash"
+): Promise<any> {
+  const res = await fetch(`http://localhost:8000/api/v1/llm/generate-hashtags`, {
+    method: 'POST',
+    headers: { 
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${localStorage.access_token}`
+    },
+    credentials: 'include',
+    body: JSON.stringify({ 
+      content,
+      platform,
+      num_hashtags: numHashtags,
+      provider,
+      model
+    }),
   });
   if (!res.ok) throw new Error('Failed to generate hashtags');
   return res.json();
 }
 
-export async function getLLMProviders(): Promise<any> {
-  const res = await fetch(`${API_BASE}/llm/providers`, {
+export async function generateImage(
+  prompt: string,
+  size: string = "1024x1024",
+  quality: string = "standard"
+): Promise<any> {
+  const res = await fetch(`http://localhost:8000/api/v1/llm/generate-image`, {
+    method: 'POST',
+    headers: { 
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${localStorage.access_token}`
+    },
     credentials: 'include',
+    body: JSON.stringify({ 
+      prompt,
+      size,
+      quality
+    }),
   });
-  if (!res.ok) throw new Error('Failed to fetch LLM providers');
+  if (!res.ok) throw new Error('Failed to generate image');
   return res.json();
 }

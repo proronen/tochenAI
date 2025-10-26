@@ -19,8 +19,8 @@ function Navbar() {
       top={0}
       p={4}
     >
-      <Link to="/">
-        <Image src={Logo} alt="Logo" maxW="3xs" p={2} />
+      <Link to="/" style={{ fontSize: "24px", fontWeight: "bold", color: "black" }}>
+        TOCHEN.AI
       </Link>
       <Flex gap={2} alignItems="center">
         <UserMenu />

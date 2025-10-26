@@ -9,6 +9,51 @@ export type Body_login_login_access_token = {
   client_secret?: string | null
 }
 
+export type Body_utils_upload_file = {
+  file: Blob | File
+}
+
+export type GenerateContentRequest = {
+  prompt: string
+  provider?: string
+  model?: string
+  max_tokens?: number
+}
+
+export type GenerateHashtagsRequest = {
+  content: string
+  platform?: string
+  count?: number
+  max_tokens?: number
+}
+
+export type GeneratePostContentRequest = {
+  post_idea: string
+  business_description: string
+  client_avatars?: string | null
+  platform?: string
+  tone?: string
+  provider?: string
+  model?: string
+}
+
+export type GeneratePostIdeasRequest = {
+  business_description: string
+  client_avatars?: string | null
+  additional_instructions?: string | null
+  provider?: string
+  model?: string
+  count?: number
+}
+
+export type GeneratePostRequest = {
+  business_description: string
+  client_avatars?: string | null
+  platform?: string
+  tone?: string
+  max_tokens?: number
+}
+
 export type HTTPValidationError = {
   detail?: Array<ValidationError>
 }
@@ -56,6 +101,45 @@ export type Token = {
   token_type?: string
 }
 
+export type UpcomingPostCreate = {
+  media_url: string
+  text: string
+  hashtags?: string
+  scheduled_time: string
+  to_facebook?: boolean
+  to_instagram?: boolean
+  to_tiktok?: boolean
+}
+
+export type UpcomingPostPublic = {
+  media_url: string
+  text: string
+  hashtags?: string
+  scheduled_time: string
+  to_facebook?: boolean
+  to_instagram?: boolean
+  to_tiktok?: boolean
+  id: string
+  owner_id: string
+  created_at: string
+  updated_at: string
+}
+
+export type UpcomingPostsPublic = {
+  data: Array<UpcomingPostPublic>
+  count: number
+}
+
+export type UpcomingPostUpdate = {
+  media_url?: string | null
+  text?: string | null
+  hashtags?: string | null
+  scheduled_time?: string | null
+  to_facebook?: boolean | null
+  to_instagram?: boolean | null
+  to_tiktok?: boolean | null
+}
+
 export type UpdatePassword = {
   current_password: string
   new_password: string
@@ -66,6 +150,10 @@ export type UserCreate = {
   is_active?: boolean
   is_superuser?: boolean
   full_name?: string | null
+  quota?: number
+  usage_count?: number
+  business_description?: string | null
+  client_avatars?: string | null
   password: string
 }
 
@@ -74,6 +162,10 @@ export type UserPublic = {
   is_active?: boolean
   is_superuser?: boolean
   full_name?: string | null
+  quota?: number
+  usage_count?: number
+  business_description?: string | null
+  client_avatars?: string | null
   id: string
 }
 
@@ -93,6 +185,10 @@ export type UserUpdate = {
   is_active?: boolean
   is_superuser?: boolean
   full_name?: string | null
+  quota?: number | null
+  usage_count?: number | null
+  business_description?: string | null
+  client_avatars?: string | null
   password?: string | null
 }
 
@@ -106,6 +202,38 @@ export type ValidationError = {
   msg: string
   type: string
 }
+
+export type AuthFacebookLoginResponse = unknown
+
+export type AuthFacebookCallbackData = {
+  code: string
+}
+
+export type AuthFacebookCallbackResponse = unknown
+
+export type AuthTiktokLoginResponse = unknown
+
+export type AuthTiktokCallbackResponse = unknown
+
+export type PostToFacebookZ95BfvData = {
+  message: string
+}
+
+export type PostToFacebookZ95BfvResponse = unknown
+
+export type PostToTiktokI7EmjsData = {
+  description: string
+  videoUrl: string
+}
+
+export type PostToTiktokI7EmjsResponse = unknown
+
+export type PostToInstagramL1Yt7MData = {
+  caption: string
+  imageUrl: string
+}
+
+export type PostToInstagramL1Yt7MResponse = unknown
 
 export type ItemsReadItemsData = {
   limit?: number
@@ -138,6 +266,38 @@ export type ItemsDeleteItemData = {
 }
 
 export type ItemsDeleteItemResponse = Message
+
+export type LlmGenerateContentData = {
+  requestBody: GenerateContentRequest
+}
+
+export type LlmGenerateContentResponse = unknown
+
+export type LlmGeneratePostIdeasData = {
+  requestBody: GeneratePostIdeasRequest
+}
+
+export type LlmGeneratePostIdeasResponse = unknown
+
+export type LlmGeneratePostContentData = {
+  requestBody: GeneratePostContentRequest
+}
+
+export type LlmGeneratePostContentResponse = unknown
+
+export type LlmGenerateSocialMediaPostData = {
+  requestBody: GeneratePostRequest
+}
+
+export type LlmGenerateSocialMediaPostResponse = unknown
+
+export type LlmGenerateHashtagsData = {
+  requestBody: GenerateHashtagsRequest
+}
+
+export type LlmGenerateHashtagsResponse = unknown
+
+export type LlmGetAvailableProvidersResponse = unknown
 
 export type LoginLoginAccessTokenData = {
   formData: Body_login_login_access_token
@@ -225,6 +385,37 @@ export type UsersDeleteUserData = {
 
 export type UsersDeleteUserResponse = Message
 
+export type UsersGetMyQuotaInfoResponse = unknown
+
+export type UsersGetUserQuotaInfoData = {
+  userId: string
+}
+
+export type UsersGetUserQuotaInfoResponse = unknown
+
+export type UsersUpdateUserClientSpecificsData = {
+  requestBody: UserUpdate
+  userId: string
+}
+
+export type UsersUpdateUserClientSpecificsResponse = unknown
+
+export type UsersIncrementMyUsageResponse = unknown
+
+export type UsersIncrementUserUsageData = {
+  userId: string
+}
+
+export type UsersIncrementUserUsageResponse = unknown
+
+export type UsersGetMyLlmUsageSummaryResponse = unknown
+
+export type UsersGetUserLlmUsageSummaryData = {
+  userId: string
+}
+
+export type UsersGetUserLlmUsageSummaryResponse = unknown
+
 export type UtilsTestEmailData = {
   emailTo: string
 }
@@ -233,35 +424,36 @@ export type UtilsTestEmailResponse = Message
 
 export type UtilsHealthCheckResponse = boolean
 
-export type UpcomingPost = {
-  id: string;
-  owner_id: string;
-  media_url: string;
-  text: string;
-  hashtags: string;
-  scheduled_time: string;
-  to_facebook: boolean;
-  to_instagram: boolean;
-  to_tiktok: boolean;
-  created_at: string;
-  updated_at: string;
-};
+export type UtilsListUpcomingPostsData = {
+  limit?: number
+  skip?: number
+}
 
-export type UpcomingPostCreate = {
-  media_url: string;
-  text: string;
-  hashtags: string;
-  scheduled_time: string;
-  to_facebook: boolean;
-  to_instagram: boolean;
-  to_tiktok: boolean;
-};
+export type UtilsListUpcomingPostsResponse = UpcomingPostsPublic
 
-export type UpcomingPostUpdate = Partial<UpcomingPostCreate>;
+export type UtilsCreatePostingData = {
+  requestBody: UpcomingPostCreate
+}
 
-export type UpcomingPostPublic = UpcomingPost;
+export type UtilsCreatePostingResponse = UpcomingPostPublic
 
-export type UpcomingPostsPublic = {
-  data: UpcomingPostPublic[];
-  count: number;
-};
+export type UtilsUpdatePostingData = {
+  postId: string
+  requestBody: UpcomingPostUpdate
+}
+
+export type UtilsUpdatePostingResponse = UpcomingPostPublic
+
+export type UtilsDeletePostingData = {
+  postId: string
+}
+
+export type UtilsDeletePostingResponse = {
+  [key: string]: unknown
+}
+
+export type UtilsUploadFileData = {
+  formData: Body_utils_upload_file
+}
+
+export type UtilsUploadFileResponse = unknown

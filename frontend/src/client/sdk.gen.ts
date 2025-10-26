@@ -4,6 +4,17 @@ import type { CancelablePromise } from "./core/CancelablePromise"
 import { OpenAPI } from "./core/OpenAPI"
 import { request as __request } from "./core/request"
 import type {
+  AuthFacebookLoginResponse,
+  AuthFacebookCallbackData,
+  AuthFacebookCallbackResponse,
+  AuthTiktokLoginResponse,
+  AuthTiktokCallbackResponse,
+  PostToFacebookZ95BfvData,
+  PostToFacebookZ95BfvResponse,
+  PostToTiktokI7EmjsData,
+  PostToTiktokI7EmjsResponse,
+  PostToInstagramL1Yt7MData,
+  PostToInstagramL1Yt7MResponse,
   ItemsReadItemsData,
   ItemsReadItemsResponse,
   ItemsCreateItemData,
@@ -14,6 +25,17 @@ import type {
   ItemsUpdateItemResponse,
   ItemsDeleteItemData,
   ItemsDeleteItemResponse,
+  LlmGenerateContentData,
+  LlmGenerateContentResponse,
+  LlmGeneratePostIdeasData,
+  LlmGeneratePostIdeasResponse,
+  LlmGeneratePostContentData,
+  LlmGeneratePostContentResponse,
+  LlmGenerateSocialMediaPostData,
+  LlmGenerateSocialMediaPostResponse,
+  LlmGenerateHashtagsData,
+  LlmGenerateHashtagsResponse,
+  LlmGetAvailableProvidersResponse,
   LoginLoginAccessTokenData,
   LoginLoginAccessTokenResponse,
   LoginTestTokenResponse,
@@ -43,10 +65,163 @@ import type {
   UsersUpdateUserResponse,
   UsersDeleteUserData,
   UsersDeleteUserResponse,
+  UsersGetMyQuotaInfoResponse,
+  UsersGetUserQuotaInfoData,
+  UsersGetUserQuotaInfoResponse,
+  UsersUpdateUserClientSpecificsData,
+  UsersUpdateUserClientSpecificsResponse,
+  UsersIncrementMyUsageResponse,
+  UsersIncrementUserUsageData,
+  UsersIncrementUserUsageResponse,
+  UsersGetMyLlmUsageSummaryResponse,
+  UsersGetUserLlmUsageSummaryData,
+  UsersGetUserLlmUsageSummaryResponse,
   UtilsTestEmailData,
   UtilsTestEmailResponse,
   UtilsHealthCheckResponse,
+  UtilsListUpcomingPostsData,
+  UtilsListUpcomingPostsResponse,
+  UtilsCreatePostingData,
+  UtilsCreatePostingResponse,
+  UtilsUpdatePostingData,
+  UtilsUpdatePostingResponse,
+  UtilsDeletePostingData,
+  UtilsDeletePostingResponse,
+  UtilsUploadFileData,
+  UtilsUploadFileResponse,
 } from "./types.gen"
+
+export class AuthService {
+  /**
+   * Facebook Login
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static facebookLogin(): CancelablePromise<AuthFacebookLoginResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/auth/facebook/login",
+    })
+  }
+
+  /**
+   * Facebook Callback
+   * @param data The data for the request.
+   * @param data.code
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static facebookCallback(
+    data: AuthFacebookCallbackData,
+  ): CancelablePromise<AuthFacebookCallbackResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/auth/facebook/callback",
+      query: {
+        code: data.code,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Tiktok Login
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static tiktokLogin(): CancelablePromise<AuthTiktokLoginResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/auth/tiktok/login",
+    })
+  }
+
+  /**
+   * Tiktok Callback
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static tiktokCallback(): CancelablePromise<AuthTiktokCallbackResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/auth/tiktok/callback",
+    })
+  }
+}
+
+export class DefaultService {
+  /**
+   * Post To Facebook
+   * @param data The data for the request.
+   * @param data.message
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static postToFacebookZ95Bfv(
+    data: PostToFacebookZ95BfvData,
+  ): CancelablePromise<PostToFacebookZ95BfvResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/facebook/post",
+      query: {
+        message: data.message,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Post To Tiktok
+   * @param data The data for the request.
+   * @param data.videoUrl
+   * @param data.description
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static postToTiktokI7Emjs(
+    data: PostToTiktokI7EmjsData,
+  ): CancelablePromise<PostToTiktokI7EmjsResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/tiktok/post",
+      query: {
+        video_url: data.videoUrl,
+        description: data.description,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Post To Instagram
+   * @param data The data for the request.
+   * @param data.imageUrl
+   * @param data.caption
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static postToInstagramL1Yt7M(
+    data: PostToInstagramL1Yt7MData,
+  ): CancelablePromise<PostToInstagramL1Yt7MResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/instagram/post",
+      query: {
+        image_url: data.imageUrl,
+        caption: data.caption,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+}
 
 export class ItemsService {
   /**
@@ -165,6 +340,131 @@ export class ItemsService {
       errors: {
         422: "Validation Error",
       },
+    })
+  }
+}
+
+export class LlmService {
+  /**
+   * Generate Content
+   * Generate content using LLM with quota enforcement.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static generateContent(
+    data: LlmGenerateContentData,
+  ): CancelablePromise<LlmGenerateContentResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/llm/generate-content",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Generate Post Ideas
+   * Generate post ideas using LLM with quota enforcement.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static generatePostIdeas(
+    data: LlmGeneratePostIdeasData,
+  ): CancelablePromise<LlmGeneratePostIdeasResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/llm/generate-post-ideas",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Generate Post Content
+   * Generate post content (text and image description) based on a post idea.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static generatePostContent(
+    data: LlmGeneratePostContentData,
+  ): CancelablePromise<LlmGeneratePostContentResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/llm/generate-post-content",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Generate Social Media Post
+   * Generate a social media post using LLM with quota enforcement.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static generateSocialMediaPost(
+    data: LlmGenerateSocialMediaPostData,
+  ): CancelablePromise<LlmGenerateSocialMediaPostResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/llm/generate-post",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Generate Hashtags
+   * Generate hashtags using LLM with quota enforcement.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static generateHashtags(
+    data: LlmGenerateHashtagsData,
+  ): CancelablePromise<LlmGenerateHashtagsResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/llm/generate-hashtags",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Get Available Providers
+   * Get available LLM providers and models.
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getAvailableProviders(): CancelablePromise<LlmGetAvailableProvidersResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/llm/providers",
     })
   }
 }
@@ -509,6 +809,140 @@ export class UsersService {
       },
     })
   }
+
+  /**
+   * Get My Quota Info
+   * Get current user's quota information.
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getMyQuotaInfo(): CancelablePromise<UsersGetMyQuotaInfoResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/users/me/quota",
+    })
+  }
+
+  /**
+   * Get User Quota Info
+   * Get a specific user's quota information (superuser only).
+   * @param data The data for the request.
+   * @param data.userId
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getUserQuotaInfo(
+    data: UsersGetUserQuotaInfoData,
+  ): CancelablePromise<UsersGetUserQuotaInfoResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/users/{user_id}/quota",
+      path: {
+        user_id: data.userId,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Update User Client Specifics
+   * Update a user's client-specific information (quota, business description, avatars).
+   * @param data The data for the request.
+   * @param data.userId
+   * @param data.requestBody
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static updateUserClientSpecifics(
+    data: UsersUpdateUserClientSpecificsData,
+  ): CancelablePromise<UsersUpdateUserClientSpecificsResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/api/v1/users/{user_id}/client-specifics",
+      path: {
+        user_id: data.userId,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Increment My Usage
+   * Increment current user's usage count (for LLM requests).
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static incrementMyUsage(): CancelablePromise<UsersIncrementMyUsageResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/users/me/increment-usage",
+    })
+  }
+
+  /**
+   * Increment User Usage
+   * Increment a specific user's usage count (superuser only).
+   * @param data The data for the request.
+   * @param data.userId
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static incrementUserUsage(
+    data: UsersIncrementUserUsageData,
+  ): CancelablePromise<UsersIncrementUserUsageResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/users/{user_id}/increment-usage",
+      path: {
+        user_id: data.userId,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Get My Llm Usage Summary
+   * Get current user's LLM usage summary.
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getMyLlmUsageSummary(): CancelablePromise<UsersGetMyLlmUsageSummaryResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/users/me/llm-usage-summary",
+    })
+  }
+
+  /**
+   * Get User Llm Usage Summary
+   * Get a specific user's LLM usage summary (superuser only).
+   * @param data The data for the request.
+   * @param data.userId
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getUserLlmUsageSummary(
+    data: UsersGetUserLlmUsageSummaryData,
+  ): CancelablePromise<UsersGetUserLlmUsageSummaryResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/users/{user_id}/llm-usage-summary",
+      path: {
+        user_id: data.userId,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
 }
 
 export class UtilsService {
@@ -544,6 +978,119 @@ export class UtilsService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v1/utils/health-check/",
+    })
+  }
+
+  /**
+   * List Upcoming Posts
+   * @param data The data for the request.
+   * @param data.skip
+   * @param data.limit
+   * @returns UpcomingPostsPublic Successful Response
+   * @throws ApiError
+   */
+  public static listUpcomingPosts(
+    data: UtilsListUpcomingPostsData = {},
+  ): CancelablePromise<UtilsListUpcomingPostsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/utils/postings",
+      query: {
+        skip: data.skip,
+        limit: data.limit,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Create Posting
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns UpcomingPostPublic Successful Response
+   * @throws ApiError
+   */
+  public static createPosting(
+    data: UtilsCreatePostingData,
+  ): CancelablePromise<UtilsCreatePostingResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/utils/postings",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Update Posting
+   * @param data The data for the request.
+   * @param data.postId
+   * @param data.requestBody
+   * @returns UpcomingPostPublic Successful Response
+   * @throws ApiError
+   */
+  public static updatePosting(
+    data: UtilsUpdatePostingData,
+  ): CancelablePromise<UtilsUpdatePostingResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/api/v1/utils/postings/{post_id}",
+      path: {
+        post_id: data.postId,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Delete Posting
+   * @param data The data for the request.
+   * @param data.postId
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static deletePosting(
+    data: UtilsDeletePostingData,
+  ): CancelablePromise<UtilsDeletePostingResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/api/v1/utils/postings/{post_id}",
+      path: {
+        post_id: data.postId,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Upload File
+   * @param data The data for the request.
+   * @param data.formData
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static uploadFile(
+    data: UtilsUploadFileData,
+  ): CancelablePromise<UtilsUploadFileResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/utils/upload",
+      formData: data.formData,
+      mediaType: "multipart/form-data",
+      errors: {
+        422: "Validation Error",
+      },
     })
   }
 }

@@ -14,7 +14,12 @@ const tabsConfig = [
   { is_superuser: true, value: "password", title: "Password", component: ChangePassword },
   { value: "appearance", title: "Appearance", component: Appearance },
   { value: "social-media", title: "Social Media Accounts", component: SocialMediaAccounts },
-  { is_superuser: true, value: "client-specifics", title: "Client Specifics", component: ClientSpecifics },
+  { 
+    value: "client-specifics", 
+    // Title will be set dynamically in the component using currentUser, not here
+    title: "Business Data", 
+    component: ClientSpecifics 
+  },
   { is_superuser: true, value: "danger-zone", title: "Danger zone", component: DeleteAccount },
 ]
 

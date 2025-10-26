@@ -2,7 +2,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 import string
 import random
 import emails  # type: ignore
@@ -12,10 +12,14 @@ from jwt.exceptions import InvalidTokenError
 import requests
 import os
 import uuid
+from openai import OpenAI
+from sqlmodel import Session, select
+import re
+from email_validator import validate_email, EmailNotValidError
 
 from app.core import security
 from app.core.config import settings
-from app.models import LLMUsageCreate
+from app.models import LLMUsageCreate, User, LLMUsage
 from app.crud import check_user_quota, increment_user_usage, create_llm_usage
 
 logging.basicConfig(level=logging.INFO)
@@ -210,6 +214,11 @@ LLM_COSTS = {
         "claude-3-opus": {"input": 0.015, "output": 0.075},
         "claude-3-sonnet": {"input": 0.003, "output": 0.015},
         "claude-3-haiku": {"input": 0.00025, "output": 0.00125},
+    },
+    "gemini": {
+        "gemini-1.5-flash": {"input": 0.000075, "output": 0.0003},  # per 1K tokens
+        "gemini-1.5-pro": {"input": 0.00375, "output": 0.015},
+        "gemini-1.0-pro": {"input": 0.0005, "output": 0.0015},
     }
 }
 
@@ -412,3 +421,144 @@ class AnthropicClient(LLMClient):
                 error_message=str(e)
             )
             raise
+
+
+class GeminiClient(LLMClient):
+    """Google Gemini client with quota enforcement"""
+    
+    def __init__(self, session, user_id: uuid.UUID, api_key: Optional[str] = None):
+        super().__init__(session, user_id)
+        self.api_key = "AIzaSyAHC4YopCb5ccNH4rpPYzOlM8ao4tc2Iyc"
+        self.base_url = "https://generativelanguage.googleapis.com/v1beta"
+    
+    def generate_content(self, prompt: str, model: str = "gemini-1.5-flash", max_tokens: int = 1000) -> Dict[str, Any]:
+        """Generate content using Gemini API with quota enforcement"""
+        try:
+            url = f"{self.base_url}/models/{model}:generateContent?key={self.api_key}"
+            
+            payload = {
+                "contents": [
+                    {
+                        "parts": [
+                            {
+                                "text": prompt
+                            }
+                        ]
+                    }
+                ],
+                "generationConfig": {
+                    "maxOutputTokens": max_tokens,
+                    "temperature": 0.7
+                }
+            }
+            
+            response = requests.post(url, json=payload)
+            response.raise_for_status()
+            
+            result = response.json()
+            
+            # Extract content from Gemini response
+            content = result["candidates"][0]["content"]["parts"][0]["text"]
+            
+            # Gemini doesn't provide token usage in the same way, so we estimate
+            # Rough estimation: 1 token ≈ 4 characters for English text
+            estimated_tokens = len(prompt + content) // 4
+            
+            # Track usage with estimated tokens
+            self._enforce_quota_and_track(
+                provider="gemini",
+                model=model,
+                request_type="content_generation",
+                prompt_tokens=estimated_tokens // 2,  # Rough split
+                completion_tokens=estimated_tokens // 2,
+                success=True
+            )
+            
+            return {
+                "content": content,
+                "tokens_used": estimated_tokens,
+                "cost_usd": calculate_llm_cost("gemini", model, estimated_tokens // 2, estimated_tokens // 2)
+            }
+            
+        except Exception as e:
+            # Track failed request
+            self._enforce_quota_and_track(
+                provider="gemini",
+                model=model,
+                request_type="content_generation",
+                prompt_tokens=0,
+                completion_tokens=0,
+                success=False,
+                error_message=str(e)
+            )
+            raise
+
+
+class ImageGenerationClient:
+    """Image generation client using OpenAI DALL-E"""
+    
+    def __init__(self, session: Session, user_id: uuid.UUID):
+        self.session = session
+        self.user_id = user_id
+        self.api_key = os.getenv("OPENAI_API_KEY")
+        if not self.api_key:
+            raise ValueError("OPENAI_API_KEY environment variable is required")
+        self.client = OpenAI(api_key=self.api_key)
+    
+    def generate_image(self, prompt: str, size: str = "1024x1024", quality: str = "standard") -> Dict[str, Any]:
+        """Generate image using DALL-E API with quota enforcement"""
+        
+        # Check user quota
+        user = self.session.get(User, self.user_id)
+        if not user:
+            raise ValueError("User not found")
+        
+        if not user.is_superuser and user.usage_count >= user.quota:
+            raise ValueError("User quota exceeded")
+        
+        try:
+            # Generate image using DALL-E
+            response = self.client.images.generate(
+                model="dall-e-3",
+                prompt=prompt,
+                size=size,
+                quality=quality,
+                n=1,
+            )
+            
+            # Get the image URL
+            image_url = response.data[0].url
+            
+            # Calculate cost (DALL-E 3 pricing: $0.04 per image)
+            cost_usd = 0.04
+            
+            # Record usage
+            usage_data = LLMUsageCreate(
+                user_id=self.user_id,
+                provider="openai",
+                model="dall-e-3",
+                input_tokens=0,  # DALL-E doesn't use tokens in the same way
+                output_tokens=0,
+                cost_usd=cost_usd,
+                request_type="image_generation",
+                prompt=prompt,
+                response_data={"image_url": image_url}
+            )
+            
+            create_llm_usage(session=self.session, usage_create=usage_data, user_id=self.user_id)
+            
+            # Update user usage count
+            user.usage_count += 1
+            self.session.add(user)
+            self.session.commit()
+            
+            return {
+                "image_url": image_url,
+                "prompt": prompt,
+                "cost_usd": cost_usd,
+                "provider": "openai",
+                "model": "dall-e-3"
+            }
+            
+        except Exception as e:
+            raise Exception(f"Image generation failed: {str(e)}")
