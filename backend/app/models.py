@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from enum import Enum
 from typing import List, Optional
 
 from pydantic import EmailStr
@@ -127,21 +128,45 @@ class NewPassword(SQLModel):
     new_password: str = Field(min_length=8, max_length=40)
 
 
-class UpcomingPostBase(SQLModel):
+class PostStatus(str, Enum):
+    SCHEDULED = "scheduled"
+    POSTING = "posting"
+    POSTED = "posted"
+    FAILED = "failed"
+
+
+class PostBase(SQLModel):
     media_url: str = Field(max_length=512)
     text: str = Field(max_length=1024)
     hashtags: str = Field(default="", max_length=512)  # comma-separated
     scheduled_time: datetime
-    to_facebook: bool = True
-    to_instagram: bool = True
-    to_tiktok: bool = True
+    to_facebook: bool = Field(default=True)
+    to_instagram: bool = Field(default=True)
+    to_tiktok: bool = Field(default=True)
+    
+    # Status and timing
+    status: PostStatus = Field(default=PostStatus.SCHEDULED)
+    posted_at: datetime | None = None
+    
+    # Platform-specific IDs (for tracking)
+    facebook_post_id: str | None = None
+    instagram_post_id: str | None = None
+    tiktok_post_id: str | None = None
+    
+    # Performance metrics (updated after posting)
+    likes: int = Field(default=0)
+    comments: int = Field(default=0)
+    shares: int = Field(default=0)
+    views: int = Field(default=0)
+    engagement_rate: float = Field(default=0.0)
+    last_updated: datetime | None = None
 
 
-class UpcomingPostCreate(UpcomingPostBase):
+class PostCreate(PostBase):
     pass
 
 
-class UpcomingPostUpdate(SQLModel):
+class PostUpdate(SQLModel):
     media_url: str | None = None
     text: str | None = None
     hashtags: str | None = None
@@ -149,9 +174,21 @@ class UpcomingPostUpdate(SQLModel):
     to_facebook: bool | None = None
     to_instagram: bool | None = None
     to_tiktok: bool | None = None
+    status: PostStatus | None = None
+    posted_at: datetime | None = None
+    facebook_post_id: str | None = None
+    instagram_post_id: str | None = None
+    tiktok_post_id: str | None = None
+    likes: int | None = None
+    comments: int | None = None
+    shares: int | None = None
+    views: int | None = None
+    engagement_rate: float | None = None
+    last_updated: datetime | None = None
 
 
-class UpcomingPost(UpcomingPostBase, table=True):
+class Post(PostBase, table=True):
+    __tablename__ = "posts"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     owner_id: uuid.UUID = Field(foreign_key="toc_users.id", nullable=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -159,15 +196,15 @@ class UpcomingPost(UpcomingPostBase, table=True):
     owner: User | None = Relationship(back_populates=None)
 
 
-class UpcomingPostPublic(UpcomingPostBase):
+class PostPublic(PostBase):
     id: uuid.UUID
     owner_id: uuid.UUID
     created_at: datetime
     updated_at: datetime
 
 
-class UpcomingPostsPublic(SQLModel):
-    data: List[UpcomingPostPublic]
+class PostsPublic(SQLModel):
+    data: List[PostPublic]
     count: int
 
 

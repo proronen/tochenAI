@@ -6,10 +6,10 @@ import os
 import uuid
 
 from app.api.deps import get_current_active_superuser, get_current_active_user
-from app.models import Message, User, UpcomingPostCreate, UpcomingPostUpdate, UpcomingPostPublic, UpcomingPostsPublic
+from app.models import Message, User, PostCreate, PostUpdate, PostPublic, PostsPublic
 from app.utils import generate_test_email, send_email
 from app.core.db import get_session
-from app.crud import create_upcoming_post, get_upcoming_posts_for_user, update_upcoming_post, delete_upcoming_post
+from app.crud import create_post, get_posts_for_user, update_post, delete_post
 
 router = APIRouter(prefix="/utils", tags=["utils"])
 
@@ -36,25 +36,25 @@ def test_email(email_to: EmailStr) -> Message:
 async def health_check() -> bool:
     return True
 
-@router.get("/postings", response_model=UpcomingPostsPublic)
-def list_upcoming_posts(skip: int = 0, limit: int = 100, session: Session = Depends(get_session), current_user: User = Depends(get_current_active_user)):
-    posts = get_upcoming_posts_for_user(session=session, owner_id=current_user.id, skip=skip, limit=limit)
+@router.get("/posts", response_model=PostsPublic)
+def list_posts(skip: int = 0, limit: int = 100, session: Session = Depends(get_session), current_user: User = Depends(get_current_active_user)):
+    posts = get_posts_for_user(session=session, owner_id=current_user.id, skip=skip, limit=limit)
     return {"data": posts, "count": len(posts)}
 
-@router.post("/postings", response_model=UpcomingPostPublic)
-def create_posting(post: UpcomingPostCreate, session: Session = Depends(get_session), current_user: User = Depends(get_current_active_user)):
-    return create_upcoming_post(session=session, post_create=post, owner_id=current_user.id)
+@router.post("/posts", response_model=PostPublic)
+def create_posting(post: PostCreate, session: Session = Depends(get_session), current_user: User = Depends(get_current_active_user)):
+    return create_post(session=session, post_create=post, owner_id=current_user.id)
 
-@router.patch("/postings/{post_id}", response_model=UpcomingPostPublic)
-def update_posting(post_id: uuid.UUID, post_update: UpcomingPostUpdate, session: Session = Depends(get_session), current_user: User = Depends(get_current_active_user)):
-    post = update_upcoming_post(session=session, post_id=post_id, post_update=post_update)
+@router.patch("/posts/{post_id}", response_model=PostPublic)
+def update_posting(post_id: uuid.UUID, post_update: PostUpdate, session: Session = Depends(get_session), current_user: User = Depends(get_current_active_user)):
+    post = update_post(session=session, post_id=post_id, post_update=post_update)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
     return post
 
-@router.delete("/postings/{post_id}", response_model=dict)
+@router.delete("/posts/{post_id}", response_model=dict)
 def delete_posting(post_id: uuid.UUID, session: Session = Depends(get_session), current_user: User = Depends(get_current_active_user)):
-    success = delete_upcoming_post(session=session, post_id=post_id)
+    success = delete_post(session=session, post_id=post_id)
     if not success:
         raise HTTPException(status_code=404, detail="Post not found")
     return {"success": True}

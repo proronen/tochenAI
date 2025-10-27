@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlmodel import Session, select, func
 
 from app.core.security import get_password_hash, verify_password
-from app.models import Item, ItemCreate, User, UserCreate, UserUpdate, UpcomingPost, UpcomingPostCreate, UpcomingPostUpdate, LLMUsage, LLMUsageCreate, LLMUsageSummary
+from app.models import Item, ItemCreate, User, UserCreate, UserUpdate, Post, PostCreate, PostUpdate, LLMUsage, LLMUsageCreate, LLMUsageSummary
 
 
 def create_user(*, session: Session, user_create: UserCreate) -> User:
@@ -141,20 +141,35 @@ def create_item(*, session: Session, item_in: ItemCreate, owner_id: uuid.UUID) -
     return db_item
 
 
-def create_upcoming_post(*, session: Session, post_create: UpcomingPostCreate, owner_id: uuid.UUID) -> UpcomingPost:
-    db_obj = UpcomingPost.model_validate(post_create, update={"owner_id": owner_id})
+def create_post(*, session: Session, post_create: PostCreate, owner_id: uuid.UUID) -> Post:
+    db_obj = Post.model_validate(post_create, update={"owner_id": owner_id})
     session.add(db_obj)
     session.commit()
     session.refresh(db_obj)
     return db_obj
 
 
-def get_upcoming_posts_for_user(*, session: Session, owner_id: uuid.UUID, skip: int = 0, limit: int = 100) -> list[UpcomingPost]:
-    return session.exec(select(UpcomingPost).where(UpcomingPost.owner_id == owner_id).offset(skip).limit(limit)).all()
+def get_posts_for_user(*, session: Session, owner_id: uuid.UUID, skip: int = 0, limit: int = 100) -> list[Post]:
+    return session.exec(select(Post).where(Post.owner_id == owner_id).offset(skip).limit(limit)).all()
 
 
-def update_upcoming_post(*, session: Session, post_id: uuid.UUID, post_update: UpcomingPostUpdate) -> UpcomingPost | None:
-    db_obj = session.get(UpcomingPost, post_id)
+def get_posts_by_status(*, session: Session, owner_id: uuid.UUID, status: str, skip: int = 0, limit: int = 100) -> list[Post]:
+    return session.exec(select(Post).where(Post.owner_id == owner_id, Post.status == status).offset(skip).limit(limit)).all()
+
+
+def get_scheduled_posts_ready_to_publish(*, session: Session) -> list[Post]:
+    """Get posts that are scheduled and ready to be published"""
+    now = datetime.utcnow()
+    return session.exec(
+        select(Post).where(
+            Post.status == "scheduled",
+            Post.scheduled_time <= now
+        )
+    ).all()
+
+
+def update_post(*, session: Session, post_id: uuid.UUID, post_update: PostUpdate) -> Post | None:
+    db_obj = session.get(Post, post_id)
     if not db_obj:
         return None
     post_data = post_update.model_dump(exclude_unset=True)
@@ -167,8 +182,26 @@ def update_upcoming_post(*, session: Session, post_id: uuid.UUID, post_update: U
     return db_obj
 
 
-def delete_upcoming_post(*, session: Session, post_id: uuid.UUID) -> bool:
-    db_obj = session.get(UpcomingPost, post_id)
+def update_post_performance(*, session: Session, post_id: uuid.UUID, performance_data: dict) -> Post | None:
+    """Update post performance metrics"""
+    db_obj = session.get(Post, post_id)
+    if not db_obj:
+        return None
+    
+    # Update performance fields
+    for field in ['likes', 'comments', 'shares', 'views', 'engagement_rate']:
+        if field in performance_data:
+            setattr(db_obj, field, performance_data[field])
+    
+    db_obj.last_updated = datetime.utcnow()
+    session.add(db_obj)
+    session.commit()
+    session.refresh(db_obj)
+    return db_obj
+
+
+def delete_post(*, session: Session, post_id: uuid.UUID) -> bool:
+    db_obj = session.get(Post, post_id)
     if not db_obj:
         return False
     session.delete(db_obj)
