@@ -1,8 +1,10 @@
+import logging
+logging.basicConfig(level=logging.INFO)
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session
+from sqlmodel import Session, select
 from datetime import datetime, timedelta
 from typing import Dict, Any, List
-from sqlalchemy import func, and_
+from sqlalchemy import func, and_, case
 
 from app.api.deps import get_current_active_user
 from app.models import User, Post, PostStatus
@@ -17,41 +19,48 @@ def get_analytics_overview(
     current_user: User = Depends(get_current_active_user)
 ) -> Dict[str, Any]:
     """Get basic analytics overview for the user's posts"""
-    
+
     # Get total posts count
     total_posts = session.exec(
-        func.count(Post.id).where(Post.owner_id == current_user.id)
+        select(func.count(Post.id)).where(Post.owner_id == current_user.id)
     ).one()
     
     # Get posts by status
     status_counts = session.exec(
-        func.count(Post.id).where(Post.owner_id == current_user.id).group_by(Post.status)
+        select(Post.status, func.count(Post.id))
+        .where(Post.owner_id == current_user.id)
+        .group_by(Post.status)
     ).all()
     
-    status_breakdown = {status: 0 for status in PostStatus}
+    status_breakdown = {status.value: 0 for status in PostStatus}
     for status, count in status_counts:
-        status_breakdown[status] = count
+        status_breakdown[status.value] = count
     
     # Get total engagement
     total_engagement = session.exec(
-        func.sum(Post.likes + Post.comments + Post.shares).where(Post.owner_id == current_user.id)
+        select(func.sum(Post.likes + Post.comments + Post.shares))
+        .where(Post.owner_id == current_user.id)
     ).one() or 0
     
     # Get average engagement rate
     avg_engagement_rate = session.exec(
-        func.avg(Post.engagement_rate).where(Post.owner_id == current_user.id)
+        select(func.avg(Post.engagement_rate))
+        .where(Post.owner_id == current_user.id)
     ).one() or 0.0
     
     # Get platform breakdown
     platform_breakdown = {
         "facebook": session.exec(
-            func.count(Post.id).where(and_(Post.owner_id == current_user.id, Post.to_facebook == True))
+            select(func.count(Post.id))
+            .where(and_(Post.owner_id == current_user.id, Post.to_facebook == True))
         ).one(),
         "instagram": session.exec(
-            func.count(Post.id).where(and_(Post.owner_id == current_user.id, Post.to_instagram == True))
+            select(func.count(Post.id))
+            .where(and_(Post.owner_id == current_user.id, Post.to_instagram == True))
         ).one(),
         "tiktok": session.exec(
-            func.count(Post.id).where(and_(Post.owner_id == current_user.id, Post.to_tiktok == True))
+            select(func.count(Post.id))
+            .where(and_(Post.owner_id == current_user.id, Post.to_tiktok == True))
         ).one()
     }
     
@@ -75,26 +84,32 @@ def get_engagement_trends(
     start_date = datetime.utcnow() - timedelta(days=days)
     
     # Get daily engagement data
-    daily_data = session.exec(
-        func.date(Post.posted_at).label('date'),
-        func.sum(Post.likes).label('likes'),
-        func.sum(Post.comments).label('comments'),
-        func.sum(Post.shares).label('shares'),
-        func.sum(Post.views).label('views'),
-        func.avg(Post.engagement_rate).label('avg_engagement_rate')
-    ).where(
-        and_(
-            Post.owner_id == current_user.id,
-            Post.posted_at >= start_date,
-            Post.status == PostStatus.POSTED
+    statement = (
+        select(
+            func.date(Post.posted_at).label('date'),
+            func.sum(Post.likes).label('likes'),
+            func.sum(Post.comments).label('comments'),
+            func.sum(Post.shares).label('shares'),
+            func.sum(Post.views).label('views'),
+            func.avg(Post.engagement_rate).label('avg_engagement_rate')
         )
-    ).group_by(func.date(Post.posted_at)).all()
+        .where(
+            and_(
+                Post.owner_id == current_user.id,
+                Post.posted_at >= start_date,
+                Post.status == PostStatus.POSTED
+            )
+        )
+        .group_by(func.date(Post.posted_at))
+    )
+    
+    daily_data = session.exec(statement).all()
     
     # Format data for frontend
     trends = []
     for row in daily_data:
         trends.append({
-            "date": row.date.isoformat(),
+            "date": row.date.isoformat() if row.date else None,
             "likes": row.likes or 0,
             "comments": row.comments or 0,
             "shares": row.shares or 0,
@@ -124,7 +139,7 @@ def get_platform_performance(
         
         # Get posts for this platform
         platform_posts = session.exec(
-            func.count(Post.id).where(
+            select(func.count(Post.id)).where(
                 and_(
                     Post.owner_id == current_user.id,
                     getattr(Post, platform_field) == True,
@@ -135,7 +150,7 @@ def get_platform_performance(
         
         # Get engagement metrics
         total_likes = session.exec(
-            func.sum(Post.likes).where(
+            select(func.sum(Post.likes)).where(
                 and_(
                     Post.owner_id == current_user.id,
                     getattr(Post, platform_field) == True,
@@ -145,7 +160,7 @@ def get_platform_performance(
         ).one() or 0
         
         total_comments = session.exec(
-            func.sum(Post.comments).where(
+            select(func.sum(Post.comments)).where(
                 and_(
                     Post.owner_id == current_user.id,
                     getattr(Post, platform_field) == True,
@@ -155,7 +170,7 @@ def get_platform_performance(
         ).one() or 0
         
         total_shares = session.exec(
-            func.sum(Post.shares).where(
+            select(func.sum(Post.shares)).where(
                 and_(
                     Post.owner_id == current_user.id,
                     getattr(Post, platform_field) == True,
@@ -165,7 +180,7 @@ def get_platform_performance(
         ).one() or 0
         
         avg_engagement_rate = session.exec(
-            func.avg(Post.engagement_rate).where(
+            select(func.avg(Post.engagement_rate)).where(
                 and_(
                     Post.owner_id == current_user.id,
                     getattr(Post, platform_field) == True,
@@ -197,18 +212,20 @@ def get_hashtag_performance(
     # This is a simplified version - in a real implementation, you'd want to
     # parse hashtags from the hashtags field and aggregate them
     posts_with_hashtags = session.exec(
-        Post.id,
-        Post.hashtags,
-        Post.likes,
-        Post.comments,
-        Post.shares,
-        Post.engagement_rate
-    ).where(
-        and_(
-            Post.owner_id == current_user.id,
-            Post.hashtags.isnot(None),
-            Post.hashtags != "",
-            Post.status == PostStatus.POSTED
+        select(
+            Post.id,
+            Post.hashtags,
+            Post.likes,
+            Post.comments,
+            Post.shares,
+            Post.engagement_rate
+        ).where(
+            and_(
+                Post.owner_id == current_user.id,
+                Post.hashtags.isnot(None),
+                Post.hashtags != "",
+                Post.status == PostStatus.POSTED
+            )
         )
     ).all()
     

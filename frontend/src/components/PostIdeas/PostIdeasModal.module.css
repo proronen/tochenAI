@@ -1,0 +1,11 @@
+.closeButton {
+  position: absolute !important;
+  top: 20px !important;
+  right: 24px !important;
+  cursor: pointer;
+  background-color: teal;
+  color: white;
+  padding: 5px 10px !important;
+  border-radius: 5px;
+}
+
