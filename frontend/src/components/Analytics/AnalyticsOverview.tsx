@@ -11,7 +11,7 @@ const AnalyticsOverview = ({ data }: AnalyticsOverviewProps) => {
     }
 
     const statusEntries = Object.entries(data.status_breakdown || {});
-    
+
     return (
         <Container maxW="full">
             <Heading size="sm" py={4}>

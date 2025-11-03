@@ -14,12 +14,12 @@ export const useAnalytics = (params: AnalyticsGetOverviewParams = {}) => {
 
     return {
         overview: overviewQuery.data,
-        
+
         isLoading: overviewQuery.isLoading,
         isFetching: overviewQuery.isFetching,
         isError: overviewQuery.isError,
         error: overviewQuery.error,
-        
+
         refetch: overviewQuery.refetch,
     };
 };
